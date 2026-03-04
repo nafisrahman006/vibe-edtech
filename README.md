@@ -35,6 +35,7 @@
 - [Search & Discovery](#search--discovery)
 - [Getting Started](#getting-started)
 - [Diagnostics & Inspection](#diagnostics--inspection)
+- [Observability](#observability)
 - [Contributing](#contributing)
 
 ---
@@ -302,7 +303,74 @@ docker exec -it edtech-platform-redis redis-cli FLUSHALL
 
 ---
 
-## Contributing
+## Observability
+
+The platform includes a comprehensive observability stack built with **Prometheus**, **Grafana**, and industry-standard exporters to monitor system health, metrics, and performance in real-time.
+
+### What's Included
+
+| Component | Purpose | Port |
+|---|---|---|
+| **Prometheus** | Metrics scraping and time-series database | `9090` |
+| **Grafana** | Visualization & dashboard creation | `3001` |
+| **cAdvisor** | Container metrics (CPU, memory, network) | `8080` |
+| **Redis Exporter** | Redis performance and key statistics | `9121` |
+| **Node Exporter** | Host-level system metrics (disk, CPU, memory) | `9100` |
+
+### Architecture
+
+```
+Exporters (cAdvisor, Redis, Node) 
+        ↓
+  Prometheus (Scrapes every 15s)
+        ↓
+  Grafana (Visualizes & Alerts)
+        ↓
+   Dashboards & Analytics
+```
+
+### Grafana Dashboards
+
+The platform comes pre-configured with Grafana dashboards for:
+- **System Health** — CPU, memory, disk usage
+- **Container Metrics** — Application container performance
+- **Redis Monitoring** — Key counts, memory usage, command latency
+- **Application Uptime** — Service availability and response times
+
+#### 📊 Grafana Dashboard
+
+![Grafana Monitoring](screenshots/grafana.png)
+
+> Real-time monitoring dashboards showing system metrics, container performance, and application health powered by Prometheus.
+
+#### 💾 Redis Metrics
+
+![Redis Exporter Metrics](screenshots/redis.png)
+
+> Redis exporter providing detailed metrics including key counts, memory consumption, command latency, and eviction statistics.
+
+### Accessing the Dashboards
+
+1. **Prometheus** (raw metrics): `http://localhost:9090`
+2. **Grafana** (dashboards): `http://localhost:3001`
+   - Default credentials: `admin` / `admin`
+   - Pre-configured datasource: Prometheus (`http://prometheus:9090`)
+
+### Prometheus Configuration
+
+Prometheus scrapes metrics every **15 seconds** from the following targets:
+
+```yaml
+# Prometheus → Targets
+- localhost:9090        # Prometheus itself
+- edtech-cadvisor:8080  # Container metrics
+- edtech-redis-exporter:9121   # Redis stats
+- edtech-node-exporter:9100    # Host metrics
+```
+
+Configuration file: [observability/prometheus.yml](observability/prometheus.yml)
+
+### Contributing
 
 This is a personal learning project, but PRs and suggestions are always welcome!
 
