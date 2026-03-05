@@ -309,17 +309,6 @@ docker exec -it edtech-platform-redis redis-cli FLUSHALL
 ## CI/CD Pipeline
 Built with GitHub Actions, Docker, and Trivy security scanning.
 
-### `ci-cd.yml` — push to `main`
-
-```mermaid
-flowchart LR
-    A[Push to main] --> B[🔍 Lint]
-    B --> C[🧪 Test]
-    C --> D[🐳 Docker Build & Push]
-    D --> E[🛡️ Trivy Scan]
-    E --> F[✅ Done]
-```
-
 ### `auto-pr-merge.yml` — push to `dev`
 
 ```mermaid
