@@ -106,7 +106,7 @@ jobs:
             if (existingPRs.length > 0) {
               // PR already exists, reuse it
               pr = existingPRs[0];
-              console.log(`✅ PR already exists: #${pr.number} — ${pr.html_url}`);
+              console.log(` PR already exists: #${pr.number} — ${pr.html_url}`);
             } else {
               // Create a new PR
               const { data: newPR } = await github.rest.pulls.create({
@@ -124,7 +124,7 @@ jobs:
                   `| **Commit** | \`${context.sha.slice(0, 7)}\` |`,
                   `| **Triggered by** | @${context.actor} |`,
                   '',
-                  '### ✅ All checks passed',
+                  '###  All checks passed',
                   '- Lint passed',
                   '- Tests passed',
                   '',
@@ -132,7 +132,7 @@ jobs:
                 ].join('\n')
               });
               pr = newPR;
-              console.log(`✅ PR created: #${pr.number} — ${pr.html_url}`);
+              console.log(` PR created: #${pr.number} — ${pr.html_url}`);
             }
 
             // Save PR number for next step
@@ -151,8 +151,8 @@ jobs:
               repo: context.repo.repo,
               pull_number: prNumber,
               merge_method: 'squash',   // options: squash | merge | rebase
-              commit_title: `🚀 Auto merge dev → main (#${prNumber})`,
+              commit_title: ` Auto merge dev → main (#${prNumber})`,
               commit_message: 'Automatically merged after all checks passed.'
             });
 
-            console.log(`✅ PR #${prNumber} merged into main successfully!`);
+            console.log(` PR #${prNumber} merged into main successfully!`);
