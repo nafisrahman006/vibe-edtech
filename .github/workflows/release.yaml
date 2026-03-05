@@ -9,7 +9,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*.1.1"    # triggers on v1.0.0, v1.1.1, v2.0.0 etc.
+      - "v1.1.1"    # triggers on v1.0.0, v1.1.1, v2.0.0 etc.
 
 jobs:
 
