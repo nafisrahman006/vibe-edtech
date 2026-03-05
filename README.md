@@ -222,8 +222,8 @@ Results update instantly on every keystroke
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/nafisrahman006/lumina-learning.git
-cd lumina-learning
+git clone https://github.com/nafisrahman006/lumina-ed.git
+cd lumina-ed
 ```
 
 ### 2. Configure Environment Variables
@@ -423,7 +423,7 @@ Please follow [Conventional Commits](https://www.conventionalcommits.org/) for a
 
 Vibe coded with curiosity. Built with real-world patterns. Broken many times. Fixed every time. 💜
 
-**Lumina Learning** · [Report a Bug](https://github.com/nafisrahman006/lumina-learning/issues) · [Request a Feature](https://github.com/nafisrahman006/lumina-learning/issues)
+**Lumina Learning** · [Report a Bug](https://github.com/nafisrahman006/lumina-ed/issues) · [Request a Feature](https://github.com/nafisrahman006/lumina-ed/issues)
 
 > ⚠️ This is a learning/practice project. Not affiliated with [luminalearning.com](https://luminalearning.com)
 
