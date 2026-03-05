@@ -1,11 +1,3 @@
-# ============================================================
-#  Docker Pipeline — build (no push) + trivy scan
-#  Trigger: push to docker branch
-#  On pass: auto merge docker → main
-#  NOTE: image is NOT pushed to Docker Hub here
-#        pushing only happens in release.yml
-# ============================================================
-
 name: Docker CI
 
 on:
@@ -111,7 +103,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL
-          scanners: vuln     
+          scanners: vuln         # only vuln scanner, skip secret/config
 
       - name: Trivy scan — JSON artifact
         uses: aquasecurity/trivy-action@master
@@ -195,6 +187,27 @@ jobs:
             }
 
             core.setOutput('pr_number', pr.number);
+
+            // Wait for GitHub to compute mergeability (retry up to 5 times)
+            let mergeable = false;
+            for (let i = 0; i < 5; i++) {
+              await new Promise(r => setTimeout(r, 5000)); // wait 5 seconds
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+              });
+              console.log(`Attempt ${i + 1}: mergeable = ${prData.mergeable}`);
+              if (prData.mergeable === true) {
+                mergeable = true;
+                break;
+              }
+            }
+
+            if (!mergeable) {
+              core.setFailed('PR is not mergeable after waiting. Please check for conflicts.');
+              return;
+            }
 
             await github.rest.pulls.merge({
               owner: context.repo.owner,
