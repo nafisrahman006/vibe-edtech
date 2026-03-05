@@ -35,6 +35,7 @@
 - [Search & Discovery](#search--discovery)
 - [Getting Started](#getting-started)
 - [Diagnostics & Inspection](#diagnostics--inspection)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Observability](#observability)
 - [Contributing](#contributing)
 
@@ -52,6 +53,8 @@ No shortcuts. No tutorials copy-pasted. Just vibes, curiosity, and a lot of debu
 ### 🏠 Home — Course Discovery
 
 ![Home Page](screenshots/Screenshot%202026-03-02%20214434.png)
+![Features](screenshots/feature.png)
+![certificate](screenshots/certficate.png)
 
 > Dark-themed dashboard with real-time course search, category badges, ratings, and pricing. Logged in as **Test User** with instant access to enrolled courses.
 
@@ -302,6 +305,49 @@ docker exec -it edtech-platform-redis redis-cli FLUSHALL
 > ⚠️ **Irreversible.** Use only in development or staging environments.
 
 ---
+
+## CI/CD Pipeline
+Built with GitHub Actions, Docker, and Trivy security scanning.
+
+### `ci-cd.yml` — push to `main`
+
+```mermaid
+flowchart LR
+    A[Push to main] --> B[🔍 Lint]
+    B --> C[🧪 Test]
+    C --> D[🐳 Docker Build & Push]
+    D --> E[🛡️ Trivy Scan]
+    E --> F[✅ Done]
+```
+
+### `auto-pr-merge.yml` — push to `dev`
+
+```mermaid
+flowchart LR
+    A[Push to dev] --> B[🔍 Lint]
+    B --> C[🧪 Test]
+    C --> D[🔀 Auto PR]
+    D --> E[✅ Merge to main]
+```
+
+### `docker.yml` — push to `docker`
+
+```mermaid
+flowchart LR
+    A[Push to docker] --> B[🐳 Docker Build]
+    B --> C[🛡️ Trivy Scan]
+    C --> D[🔀 Auto PR]
+    D --> E[✅ Merge to main]
+```
+
+### `release.yml` — git tag `v1.0.0`
+
+```mermaid
+flowchart LR
+    A[git tag v1.0.0] --> B[🐳 Docker Build]
+    B --> C[📦 Push to Docker Hub]
+    C --> D[✅ lumina-learning:v1.0.0]
+```
 
 ## Observability
 
