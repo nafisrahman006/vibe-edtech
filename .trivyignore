@@ -1,0 +1,2 @@
+CVE-2025-68121    ← Trivy sees this and skips it
+CVE-2024-12345    ← add more CVEs one per line

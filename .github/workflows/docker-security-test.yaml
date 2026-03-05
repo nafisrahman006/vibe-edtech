@@ -1,0 +1,221 @@
+name: Docker CI
+
+on:
+  push:
+    branches:
+      - docker
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/lumina-learning
+
+jobs:
+
+# ===========================================================
+# JOB 1 — Docker Build only (no push)
+# ⛔ fails → trivy skipped
+# ===========================================================
+  docker:
+    name: 🐳 Docker Build (test only)
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image locally
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false           # ✅ build only — NOT pushed to Docker Hub
+          tags: ${{ env.IMAGE_NAME }}:test
+          load: true            # loads image into local runner for trivy
+
+      - name: Print build result
+        run: echo "✅ Image built successfully — not pushed to Docker Hub"
+
+# ===========================================================
+# JOB 2 — Trivy Security Scan (scans local image)
+# ⛔ fails on CRITICAL → auto merge blocked
+# ===========================================================
+  trivy:
+    name: 🛡️ Trivy Security Scan
+    runs-on: ubuntu-latest
+    needs: docker            # ⛔ won't run if docker build failed
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Rebuild image for Trivy (each job runs on a fresh runner)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:test
+          load: true
+
+      - name: Trivy scan — table output
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: table
+          exit-code: "0"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Trivy scan — SARIF report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Trivy scan — fail on CRITICAL
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          scan-type: image
+          format: table
+          exit-code: "1"         # ⛔ fails pipeline if CRITICAL found
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+          scanners: vuln         # only vuln scanner, skip secret/config
+
+      - name: Trivy scan — JSON artifact
+        uses: aquasecurity/trivy-action@master
+        if: always()
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: json
+          output: trivy-results.json
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy JSON report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: trivy-results.json
+          retention-days: 30
+
+# ===========================================================
+# JOB 3 — Auto PR & Merge docker → main
+# only runs if docker + trivy both passed
+# ===========================================================
+  auto-pr-merge:
+    name: 🔀 Auto Merge docker → main
+    runs-on: ubuntu-latest
+    needs: [docker, trivy]   # ⛔ both must pass
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create PR & Auto Merge
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          script: |
+            const { data: existingPRs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:docker`,
+              base: 'main',
+              state: 'open'
+            });
+
+            let pr;
+
+            if (existingPRs.length > 0) {
+              pr = existingPRs[0];
+              console.log(`✅ PR already exists: #${pr.number}`);
+            } else {
+              const { data: newPR } = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🐳 Auto PR: docker → main (${context.sha.slice(0, 7)})`,
+                head: 'docker',
+                base: 'main',
+                body: [
+                  '## Automated Docker Pipeline PR',
+                  '',
+                  '| | |',
+                  '|---|---|',
+                  '| **Branch** | `docker` → `main` |',
+                  `| **Commit** | \`${context.sha.slice(0, 7)}\` |`,
+                  `| **Triggered by** | @${context.actor} |`,
+                  '',
+                  '### ✅ All checks passed',
+                  '- Docker build passed',
+                  '- Trivy security scan passed',
+                  '',
+                  '_This PR was created automatically by the Docker CI pipeline._'
+                ].join('\n')
+              });
+              pr = newPR;
+              console.log(`✅ PR created: #${pr.number}`);
+            }
+
+            core.setOutput('pr_number', pr.number);
+
+            // Wait for GitHub to compute mergeability (retry up to 5 times)
+            let mergeable = false;
+            for (let i = 0; i < 5; i++) {
+              await new Promise(r => setTimeout(r, 5000)); // wait 5 seconds
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+              });
+              console.log(`Attempt ${i + 1}: mergeable = ${prData.mergeable}`);
+              if (prData.mergeable === true) {
+                mergeable = true;
+                break;
+              }
+            }
+
+            if (!mergeable) {
+              core.setFailed('PR is not mergeable after waiting. Please check for conflicts.');
+              return;
+            }
+
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              merge_method: 'squash',
+              commit_title: `🐳 Auto merge docker → main (#${pr.number})`,
+              commit_message: 'Automatically merged after docker build and trivy scan passed.'
+            });
+
+            console.log(`✅ PR #${pr.number} merged into main!`);
