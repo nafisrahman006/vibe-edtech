@@ -1,0 +1,10 @@
+{
+  "name": "ai-log-analyzer",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "analyzer.js",
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "dockerode": "^4.0.0"
+  }
+}
