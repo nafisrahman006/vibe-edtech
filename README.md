@@ -37,6 +37,7 @@
 - [Diagnostics & Inspection](#diagnostics--inspection)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Observability](#observability)
+- [AI Log Analyzer](#ai-log-analyzer)
 - [Contributing](#contributing)
 
 ---
@@ -405,6 +406,74 @@ Prometheus scrapes metrics every **15 seconds** from the following targets:
 
 Configuration file: [observability/prometheus.yml](observability/prometheus.yml)
 
+## AI Log Analyzer
+
+The platform includes an **AI-powered sidecar container** that watches Docker logs in real time, detects errors, and sends an instant analysis to Slack — with zero changes to the application source code.
+
+### How It Works
+
+```mermaid
+flowchart TD
+    A[edtech-platform-app] -->|stdout/stderr| B[Docker Log Stream]
+    B -->|watched by| C[ai-analyzer sidecar]
+    C --> D{Is it an ERROR?}
+    D -->|No| E[Ignored]
+    D -->|Yes| F[🧹 Sanitize Log]
+    F -->|remove emails, passwords, IPs, tokens| G[Clean Log]
+    G -->|send to| H[Google Gemini 2.0 Flash]
+    H -->|analysis| I[🔴 Root Cause + 🔧 Fix + 💡 Code]
+    I --> J[📨 Slack Alert]
+    I --> K[Docker Logs]
+```
+
+### Sidecar Container Architecture
+
+```
+Docker Compose Stack
+├── edtech-platform-app     ← your app
+├── edtech-platform-db      ← PostgreSQL
+├── edtech-platform-redis   ← Redis
+└── edtech-ai-analyzer      ← sidecar (reads app logs via docker.sock)
+        │
+        ├── Mounts: /var/run/docker.sock  (read-only access to Docker logs)
+        ├── No ports exposed
+        └── No changes to app container needed
+```
+
+### Privacy — Log Sanitization
+
+Before any log is sent to Gemini, all sensitive data is automatically stripped:
+
+| Data | Before | After |
+|---|---|---|
+| Emails | `john@example.com` | `[EMAIL]` |
+| DB URLs | `postgresql://user:pass@host` | `postgresql://[REDACTED]` |
+| Redis URLs | `redis://:secret@host` | `redis://[REDACTED]` |
+| Session IDs | `sess:abc123xyz` | `sess:[REDACTED]` |
+| JWT tokens | `eyJhbGci...` | `[JWT]` |
+| IP addresses | `192.168.1.105` | `[IP]` |
+| API keys | `AIzaSyD8x...` | `[SECRET]` |
+
+Gemini only ever sees the **error type and stack trace** — never real credentials or user data.
+
+### Slack Alert
+
+![Slcak Alert](screenshots/image.png)
+
+### Setup
+
+Add to `.env`:
+```bash
+GEMINI_API_KEY=your_key_here        
+SLACK_WEBHOOK_URL=your_webhook_here 
+```
+
+View analyzer logs:
+```bash
+docker logs edtech-ai-analyzer
+```
+
+---
 ### Contributing
 
 This is a personal learning project, but PRs and suggestions are always welcome!
