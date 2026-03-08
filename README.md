@@ -55,9 +55,9 @@ No shortcuts. No tutorials copy-pasted. Just vibes, curiosity, and a lot of debu
 
 ![Home Page](screenshots/Screenshot%202026-03-02%20214434.png)
 ![Features](screenshots/feature.png)
-![certificate](screenshots/certficate.png)
 
-> Dark-themed dashboard with real-time course search, category badges, ratings, and pricing. Logged in as **Test User** with instant access to enrolled courses.
+
+Dark-themed dashboard with real-time course search, category badges, ratings, and pricing. Logged in as **Test User** with instant access to enrolled courses.
 
 ---
 
@@ -65,6 +65,7 @@ No shortcuts. No tutorials copy-pasted. Just vibes, curiosity, and a lot of debu
 
 > Auto-generated **Certificate of Achievement** issued on course completion — includes course name, student name, issue date, verified badge, and dual signatures from Lead Instructor & Director of Education.
 
+![certificate](screenshots/certficate.png)
 ---
 
 ## Tech Stack
@@ -241,12 +242,7 @@ Generate a Secure Session Secret
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Copy the output — it will look like this:
-
-```
-a3f1c2e4b5d6789012345678abcdef01234567890abcdef1234567890abcdef12
-```
-
+Copy the output 
 
 > ⚠️ **Do not wrap values in quotes** inside `.env` files. The `cleanEnv` utility handles sanitization, but bare values are always preferred.
 
@@ -430,7 +426,7 @@ flowchart TD
 
 ```
 Docker Compose Stack
-├── edtech-platform-app     ← your app
+├── edtech-platform-app     ← app
 ├── edtech-platform-db      ← PostgreSQL
 ├── edtech-platform-redis   ← Redis
 └── edtech-ai-analyzer      ← sidecar (reads app logs via docker.sock)
