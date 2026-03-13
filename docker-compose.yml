@@ -1,62 +1,9 @@
-# version: '3.8'
-
-# services:
-#   # The Full Application
-#   edtech-app:
-#     build: .
-#     container_name: edtech-platform-app
-#     restart: always
-#     ports:
-#       - "3000:3000"
-#     env_file:
-#       - .env
-#     environment:
-#       - DATABASE_URL=${DATABASE_URL}
-#       - REDIS_URL=${REDIS_URL}
-#     depends_on:
-#       edtech-redis:
-#         condition: service_healthy
-#       edtech-db:
-#         condition: service_started
-#     volumes:
-#       - .:/app
-#       - /app/node_modules
-
-#   # PostgreSQL Database
-#   edtech-db:
-#     image: postgres:15-alpine
-#     container_name: edtech-platform-db
-#     restart: always
-#     environment:
-#       POSTGRES_USER: ${POSTGRES_USER}
-#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#       POSTGRES_DB: ${POSTGRES_DB}
-#     ports:
-#       - "5432:5432"
-#     volumes:
-#       - edtech_pg_volume:/var/lib/postgresql/data
-
-#   # Redis for Sessions
-#   edtech-redis:
-#     image: redis:7-alpine
-#     container_name: edtech-platform-redis
-#     restart: always
-#     ports:
-#       - "6379:6379"
-#     healthcheck:
-#       test: ["CMD", "redis-cli", "ping"]
-#       interval: 5s
-#       timeout: 3s
-#       retries: 5
-
-# volumes:
-#   edtech_pg_volume:
-
 version: '3.8'
 
 services:
+
   # ─────────────────────────────────────────
-  # The Full Application
+  # Application
   # ─────────────────────────────────────────
   edtech-app:
     build: .
@@ -79,7 +26,7 @@ services:
       - /app/node_modules
 
   # ─────────────────────────────────────────
-  # PostgreSQL Database
+  # PostgreSQL
   # ─────────────────────────────────────────
   edtech-db:
     image: postgres:15-alpine
@@ -95,7 +42,7 @@ services:
       - edtech_pg_volume:/var/lib/postgresql/data
 
   # ─────────────────────────────────────────
-  # Redis for Sessions
+  # Redis
   # ─────────────────────────────────────────
   edtech-redis:
     image: redis:7-alpine
@@ -110,47 +57,45 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────
+  # 🤖 AI Log Analyzer
+  # ─────────────────────────────────────────
+  ai-analyzer:
+    build: ./ai-analyzer
+    container_name: edtech-ai-analyzer
+    restart: unless-stopped
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - APP_CONTAINER=edtech-platform-app
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - edtech-app
+
+  # ─────────────────────────────────────────
   # OBSERVABILITY STACK
   # ─────────────────────────────────────────
 
-  # cAdvisor — scrapes per-container CPU, memory, network, disk
-  # cadvisor:
-  #   image: gcr.io/cadvisor/cadvisor:latest
-  #   container_name: edtech-cadvisor
-  #   restart: always
-  #   privileged: true
-  #   ports:
-  #     - "8080:8080"
-  #   volumes:
-  #     - /:/rootfs:ro
-  #     - /var/run:/var/run:ro
-  #     - /sys:/sys:ro
-  #     - /var/lib/docker/:/var/lib/docker:ro
-  #     - /dev/disk/:/dev/disk:ro
-  #   devices:
-  #     - /dev/kmsg
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: edtech-cadvisor
     restart: always
     privileged: true
     ports:
-    - "8080:8080"
+      - "8080:8080"
     volumes:
-    - /:/rootfs:ro
-    - /var/run:/var/run:ro
-    - /sys:/sys:ro
-    - /var/lib/docker/:/var/lib/docker:ro
-    - /dev/disk/:/dev/disk:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
     devices:
-    - /dev/kmsg
+      - /dev/kmsg
     command:
-    - '--docker_only=true'
-    - '--store_container_labels=true'
-    - '--whitelisted_container_labels=com.docker.compose.service'
-    
+      - '--docker_only=true'
+      - '--store_container_labels=true'
+      - '--whitelisted_container_labels=com.docker.compose.service'
 
-  # Prometheus — time-series metrics store
   prometheus:
     image: prom/prometheus:latest
     container_name: edtech-prometheus
@@ -167,7 +112,6 @@ services:
     depends_on:
       - cadvisor
 
-  # Grafana — rich dashboards (bonus, pre-configured)
   grafana:
     image: grafana/grafana:latest
     container_name: edtech-grafana
@@ -176,13 +120,17 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=edtech123
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
+    dns:
+      - 8.8.8.8        # ← Google DNS, allows internet access
+      - 8.8.4.4 
     volumes:
       - grafana_data:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: edtech-redis-exporter
@@ -190,9 +138,10 @@ services:
     ports:
       - "9121:9121"
     environment:
-      - REDIS_ADDR=redis://edtech-platform-redis:6379
+      - REDIS_ADDR=redis://edtech-redis:6379 
     depends_on:
       - edtech-redis
+
   node-exporter:
     image: prom/node-exporter:latest
     container_name: edtech-node-exporter
@@ -207,9 +156,45 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
-  
+
+  # ─────────────────────────────────────────
+  # Loki — log storage
+  # ─────────────────────────────────────────
+  loki:
+    image: grafana/loki:latest
+    container_name: edtech-loki
+    restart: always
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+
+  # ─────────────────────────────────────────
+  # Promtail — ships Docker logs to Loki
+  # ─────────────────────────────────────────
+  promtail:
+    image: grafana/promtail:latest
+    container_name: edtech-promtail
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: edtech-postgres-exporter
+    restart: always
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@edtech-platform-db:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      - edtech-db
 
 volumes:
   edtech_pg_volume:
   prometheus_data:
   grafana_data:
+  loki_data:

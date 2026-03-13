@@ -26,7 +26,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Screenshots](#screenshots)
+- [App-Overview](#app-overview)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Key Features](#key-features)
@@ -35,7 +35,9 @@
 - [Search & Discovery](#search--discovery)
 - [Getting Started](#getting-started)
 - [Diagnostics & Inspection](#diagnostics--inspection)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Observability](#observability)
+- [AI Log Analyzer](#ai-log-analyzer)
 - [Contributing](#contributing)
 
 ---
@@ -47,21 +49,12 @@
 No shortcuts. No tutorials copy-pasted. Just vibes, curiosity, and a lot of debugging. 🚀
 
 ---
-## Screenshots
+## App-Overview
 
-### 🏠 Home — Course Discovery
+![Home Page](screenshots/lumins.gif)
 
-![Home Page](screenshots/Screenshot%202026-03-02%20214434.png)
 
-> Dark-themed dashboard with real-time course search, category badges, ratings, and pricing. Logged in as **Test User** with instant access to enrolled courses.
-
----
-
-### 🎓 Certificate of Achievement
-
-> Auto-generated **Certificate of Achievement** issued on course completion — includes course name, student name, issue date, verified badge, and dual signatures from Lead Instructor & Director of Education.
-
----
+Dark-themed dashboard with real-time course search, category badges, ratings, and pricing. Logged in as **Test User** with instant access to enrolled courses.
 
 ## Tech Stack
 
@@ -219,8 +212,8 @@ Results update instantly on every keystroke
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/nafisrahman006/vibe-edtech.git
-cd vibe-edtech
+git clone https://github.com/nafisrahman006/lumina-ed.git
+cd lumina-ed
 ```
 
 ### 2. Configure Environment Variables
@@ -237,12 +230,7 @@ Generate a Secure Session Secret
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Copy the output — it will look like this:
-
-```
-a3f1c2e4b5d6789012345678abcdef01234567890abcdef1234567890abcdef12
-```
-
+Copy the output 
 
 > ⚠️ **Do not wrap values in quotes** inside `.env` files. The `cleanEnv` utility handles sanitization, but bare values are always preferred.
 
@@ -302,6 +290,38 @@ docker exec -it edtech-platform-redis redis-cli FLUSHALL
 > ⚠️ **Irreversible.** Use only in development or staging environments.
 
 ---
+
+## CI/CD Pipeline
+Built with GitHub Actions, Docker, and Trivy security scanning.
+
+### `auto-pr-merge.yml` — push to `dev`
+
+```mermaid
+flowchart LR
+    A[Push to dev] --> B[🔍 Lint]
+    B --> C[🧪 Test]
+    C --> D[🔀 Auto PR]
+    D --> E[✅ Merge to main]
+```
+
+### `docker.yml` — push to `docker`
+
+```mermaid
+flowchart LR
+    A[Push to docker] --> B[🐳 Docker Build]
+    B --> C[🛡️ Trivy Scan]
+    C --> D[🔀 Auto PR]
+    D --> E[✅ Merge to main]
+```
+
+### `release.yml` — git tag `v1.0.0`
+
+```mermaid
+flowchart LR
+    A[git tag v1.0.0] --> B[🐳 Docker Build]
+    B --> C[📦 Push to Docker Hub]
+    C --> D[✅ lumina-learning:v1.0.0]
+```
 
 ## Observability
 
@@ -370,6 +390,74 @@ Prometheus scrapes metrics every **15 seconds** from the following targets:
 
 Configuration file: [observability/prometheus.yml](observability/prometheus.yml)
 
+## AI Log Analyzer
+
+The platform includes an **AI-powered sidecar container** that watches Docker logs in real time, detects errors, and sends an instant analysis to Slack — with zero changes to the application source code.
+
+### How It Works
+
+```mermaid
+flowchart TD
+    A[edtech-platform-app] -->|stdout/stderr| B[Docker Log Stream]
+    B -->|watched by| C[ai-analyzer sidecar]
+    C --> D{Is it an ERROR?}
+    D -->|No| E[Ignored]
+    D -->|Yes| F[🧹 Sanitize Log]
+    F -->|remove emails, passwords, IPs, tokens| G[Clean Log]
+    G -->|send to| H[Google Gemini 2.0 Flash]
+    H -->|analysis| I[🔴 Root Cause + 🔧 Fix + 💡 Code]
+    I --> J[📨 Slack Alert]
+    I --> K[Docker Logs]
+```
+
+### Sidecar Container Architecture
+
+```
+Docker Compose Stack
+├── edtech-platform-app     ← app
+├── edtech-platform-db      ← PostgreSQL
+├── edtech-platform-redis   ← Redis
+└── edtech-ai-analyzer      ← sidecar (reads app logs via docker.sock)
+        │
+        ├── Mounts: /var/run/docker.sock  (read-only access to Docker logs)
+        ├── No ports exposed
+        └── No changes to app container needed
+```
+
+### Privacy — Log Sanitization
+
+Before any log is sent to Gemini, all sensitive data is automatically stripped:
+
+| Data | Before | After |
+|---|---|---|
+| Emails | `john@example.com` | `[EMAIL]` |
+| DB URLs | `postgresql://user:pass@host` | `postgresql://[REDACTED]` |
+| Redis URLs | `redis://:secret@host` | `redis://[REDACTED]` |
+| Session IDs | `sess:abc123xyz` | `sess:[REDACTED]` |
+| JWT tokens | `eyJhbGci...` | `[JWT]` |
+| IP addresses | `192.168.1.105` | `[IP]` |
+| API keys | `AIzaSyD8x...` | `[SECRET]` |
+
+Gemini only ever sees the **error type and stack trace** — never real credentials or user data.
+
+### Slack Alert
+
+![Slcak Alert](screenshots/image.png)
+
+### Setup
+
+Add to `.env`:
+```bash
+GEMINI_API_KEY=your_key_here        
+SLACK_WEBHOOK_URL=your_webhook_here 
+```
+
+View analyzer logs:
+```bash
+docker logs edtech-ai-analyzer
+```
+
+---
 ### Contributing
 
 This is a personal learning project, but PRs and suggestions are always welcome!
@@ -388,7 +476,7 @@ Please follow [Conventional Commits](https://www.conventionalcommits.org/) for a
 
 Vibe coded with curiosity. Built with real-world patterns. Broken many times. Fixed every time. 💜
 
-**Lumina Learning** · [Report a Bug](https://github.com/nafisrahman006/vibe-edtech/issues) · [Request a Feature](https://github.com/nafisrahman006/vib-edtech/issues)
+**Lumina Learning** · [Report a Bug](https://github.com/nafisrahman006/lumina-ed/issues) · [Request a Feature](https://github.com/nafisrahman006/lumina-ed/issues)
 
 > ⚠️ This is a learning/practice project. Not affiliated with [luminalearning.com](https://luminalearning.com)
 

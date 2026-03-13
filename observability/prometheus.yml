@@ -17,3 +17,6 @@ scrape_configs:
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['edtech-node-exporter:9100']
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['edtech-postgres-exporter:9187']

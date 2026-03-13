@@ -8,3 +8,5 @@ coverage/
 dev.md
 false.md
 !.env.example
+.trivignore
+ai-analyzer/node_modules/
