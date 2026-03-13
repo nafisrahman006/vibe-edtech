@@ -26,7 +26,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Screenshots](#screenshots)
+- [App-Overview](#app-overview)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Key Features](#key-features)
@@ -49,24 +49,12 @@
 No shortcuts. No tutorials copy-pasted. Just vibes, curiosity, and a lot of debugging. 🚀
 
 ---
-## Screenshots
+## App-Overview
 
-### 🏠 Home — Course Discovery
-
-![Home Page](screenshots/Screenshot%202026-03-02%20214434.png)
-![Features](screenshots/feature.png)
+![Home Page](screenshots/lumins.gif)
 
 
 Dark-themed dashboard with real-time course search, category badges, ratings, and pricing. Logged in as **Test User** with instant access to enrolled courses.
-
----
-
-### 🎓 Certificate of Achievement
-
-> Auto-generated **Certificate of Achievement** issued on course completion — includes course name, student name, issue date, verified badge, and dual signatures from Lead Instructor & Director of Education.
-
-![certificate](screenshots/certficate.png)
----
 
 ## Tech Stack
 

@@ -1,3 +1,132 @@
+# name: Docker CI
+
+# on:
+#   push:
+#     branches:
+#       - docker
+
+# env:
+#   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/lumina-learning
+
+# jobs:
+
+# # ===========================================================
+# # JOB 1 — Docker Build only (no push)
+# # ⛔ fails → trivy skipped
+# # ===========================================================
+#   docker:
+#     name: 🐳 Docker Build (test only)
+#     runs-on: ubuntu-latest
+
+#     permissions:
+#       contents: read
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+
+#       - name: Build Docker image locally
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           push: false           # ✅ build only — NOT pushed to Docker Hub
+#           tags: ${{ env.IMAGE_NAME }}:test
+#           load: true            # loads image into local runner for trivy
+
+#       - name: Print build result
+#         run: echo "✅ Image built successfully — not pushed to Docker Hub"
+ 
+
+# # ===========================================================
+# # JOB 2 — Trivy Security Scan (scans local image)
+# # ⛔ fails on CRITICAL → auto merge blocked
+# # ===========================================================
+#   trivy:
+#     name: 🛡️ Trivy Security Scan
+#     runs-on: ubuntu-latest
+#     needs: docker            # ⛔ won't run if docker build failed
+
+#     permissions:
+#       contents: read
+#       security-events: write
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+
+#       - name: Rebuild image for Trivy (each job runs on a fresh runner)
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           push: false
+#           tags: ${{ env.IMAGE_NAME }}:test
+#           load: true
+      
+
+#       - name: Trivy scan — table output
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ env.IMAGE_NAME }}:test
+#           format: table
+#           exit-code: "0"
+#           ignore-unfixed: true
+#           vuln-type: os,library
+#           severity: CRITICAL,HIGH
+
+#       - name: Trivy scan — SARIF report
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ env.IMAGE_NAME }}:test
+#           format: sarif
+#           output: trivy-results.sarif
+#           ignore-unfixed: true
+#           vuln-type: os,library
+#           severity: CRITICAL,HIGH
+
+#       - name: Upload SARIF to GitHub Security tab
+#         uses: github/codeql-action/upload-sarif@v3
+#         if: always()
+#         with:
+#           sarif_file: trivy-results.sarif
+
+#       - name: Trivy scan — fail on CRITICAL
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ env.IMAGE_NAME }}:test
+#           scan-type: image
+#           format: table
+#           exit-code: "1"         # ⛔ fails pipeline if CRITICAL found
+#           ignore-unfixed: true
+#           vuln-type: os,library
+#           severity: CRITICAL
+#           scanners: vuln         # only vuln scanner, skip secret/config
+
+#       - name: Trivy scan — JSON artifact
+#         uses: aquasecurity/trivy-action@master
+#         if: always()
+#         with:
+#           image-ref: ${{ env.IMAGE_NAME }}:test
+#           format: json
+#           output: trivy-results.json
+#           ignore-unfixed: true
+#           vuln-type: os,library
+#           severity: CRITICAL,HIGH
+
+#       - name: Upload Trivy JSON report
+#         uses: actions/upload-artifact@v4
+#         if: always()
+#         with:
+#           name: trivy-report
+#           path: trivy-results.json
+#           retention-days: 30
+
+
 name: Docker CI
 
 on:
@@ -6,123 +135,126 @@ on:
       - docker
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/lumina-learning
+  APP_IMAGE: ${{ secrets.DOCKER_USERNAME }}/lumina-learning
+  ANALYZER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/lumina-learning
 
 jobs:
 
 # ===========================================================
-# JOB 1 — Docker Build only (no push)
-# ⛔ fails → trivy skipped
+# JOB 1 — Build Docker Images (test only)
 # ===========================================================
-  docker:
-    name: 🐳 Docker Build (test only)
+  docker-build:
+    name: 🐳 Build Docker Images
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image locally
+      # Build main app image
+      - name: Build App Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false           # ✅ build only — NOT pushed to Docker Hub
-          tags: ${{ env.IMAGE_NAME }}:test
-          load: true            # loads image into local runner for trivy
+          push: false
+          tags: ${{ env.APP_IMAGE }}:test
+          load: true
+
+      # Build AI analyzer image
+      - name: Build Analyzer Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai-analyzer
+          push: false
+          tags: ${{ env.ANALYZER_IMAGE }}:test
+          load: true
 
       - name: Print build result
-        run: echo "✅ Image built successfully — not pushed to Docker Hub"
+        run: echo "✅ Both images built successfully"
 
 # ===========================================================
-# JOB 2 — Trivy Security Scan (scans local image)
-# ⛔ fails on CRITICAL → auto merge blocked
+# JOB 2 — Trivy Security Scan
 # ===========================================================
-  trivy:
+  trivy-scan:
     name: 🛡️ Trivy Security Scan
     runs-on: ubuntu-latest
-    needs: docker            # ⛔ won't run if docker build failed
+    needs: docker-build
 
     permissions:
       contents: read
       security-events: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Rebuild image for Trivy (each job runs on a fresh runner)
+      # Rebuild images (GitHub jobs use fresh runners)
+      - name: Rebuild App Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
-          tags: ${{ env.IMAGE_NAME }}:test
+          tags: ${{ env.APP_IMAGE }}:test
           load: true
 
-      - name: Trivy scan — table output
+      - name: Rebuild Analyzer Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai-analyzer
+          push: false
+          tags: ${{ env.ANALYZER_IMAGE }}:test
+          load: true
+
+      # -------------------------------
+      # Trivy Scan - App Image
+      # -------------------------------
+      - name: Trivy scan app image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:test
+          image-ref: ${{ env.APP_IMAGE }}:test
           format: table
-          exit-code: "0"
+          exit-code: "1"
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
 
-      - name: Trivy scan — SARIF report
+      # -------------------------------
+      # Trivy Scan - Analyzer Image
+      # -------------------------------
+      - name: Trivy scan analyzer image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_NAME }}:test
+          image-ref: ${{ env.ANALYZER_IMAGE }}:test
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      # -------------------------------
+      # SARIF Report (GitHub Security)
+      # -------------------------------
+      - name: Generate SARIF report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.APP_IMAGE }}:test
           format: sarif
           output: trivy-results.sarif
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
 
-      - name: Upload SARIF to GitHub Security tab
+      - name: Upload SARIF report
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
         with:
           sarif_file: trivy-results.sarif
 
-      - name: Trivy scan — fail on CRITICAL
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:test
-          scan-type: image
-          format: table
-          exit-code: "1"         # ⛔ fails pipeline if CRITICAL found
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL
-          scanners: vuln         # only vuln scanner, skip secret/config
-
-      - name: Trivy scan — JSON artifact
-        uses: aquasecurity/trivy-action@master
-        if: always()
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:test
-          format: json
-          output: trivy-results.json
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-
-      - name: Upload Trivy JSON report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: trivy-report
-          path: trivy-results.json
-          retention-days: 30
 
 # ===========================================================
 # JOB 3 — Auto PR & Merge docker → main
