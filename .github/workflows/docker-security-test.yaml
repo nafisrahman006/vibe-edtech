@@ -133,6 +133,7 @@ on:
   push:
     branches:
       - docker
+      - main
 
 env:
   APP_IMAGE: ${{ secrets.DOCKER_USERNAME }}/lumina-learning
