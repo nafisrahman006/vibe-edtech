@@ -44,9 +44,7 @@
 
 ## Overview
 
-**Lumina Learning** is a vibe-coded, full-stack EdTech platform built purely for learning purposes. The goal was simple — take a real-world project idea and build it properly, with production-grade patterns: Redis sessions, Docker containerization, secure auth, and a dynamic React frontend.
-
-No shortcuts. No tutorials copy-pasted. Just vibes, curiosity, and a lot of debugging. 🚀
+*Lumina Learning is a full-stack EdTech platform built as a hands-on learning project using React 19, Express, PostgreSQL, and Redis. Designed to simulate real-world production patterns, it includes Redis-backed session management, secure authentication, Docker containerization, a dynamic frontend, and AI-powered log analysis for smarter debugging and system insights.
 
 ---
 ## App-Overview
